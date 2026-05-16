@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Eco-Tracker Workspace</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f0f4f0;min-height:100vh;color:#222}
+    .header{background:#27ae60;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+    .header h1{font-size:16px}
+    .header-right{display:flex;align-items:center;gap:8px;font-size:12px}
+    .role-tag{background:rgba(255,255,255,0.25);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700}
+    .logout{background:rgba(255,255,255,0.2);border:none;color:#fff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px}
+    .nav{display:flex;background:#fff;border-bottom:2px solid #eee;overflow-x:auto}
+    .nav-item{padding:11px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#666;white-space:nowrap;font-weight:600}
+    .nav-item.active{color:#27ae60;border-bottom-color:#27ae60}
+    .main{padding:16px;max-width:960px;margin:0 auto}
+    .screen{display:none}.screen.active{display:block}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+    .met{background:#fff;border-radius:10px;padding:14px;text-align:center;border-left:4px solid #27ae60}
+    .met.r{border-color:#e74c3c}.met.o{border-color:#f39c12}.met.p{border-color:#9b59b6}
+    .met-val{font-size:28px;font-weight:700;color:#222}
+    .met.r .met-val{color:#e74c3c}.met.o .met-val{color:#f39c12}.met.p .met-val{color:#9b59b6}
+    .met-lab{font-size:11px;color:#888;margin-top:2px}
+    .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px}
+    .card h3{font-size:13px;color:#888;margin-bottom:12px;text-transform:uppercase}
+    .alert-row{display:flex;align-items:center;gap:10px;padding:10px;background:#fff9f0;border-radius:7px;border-left:3px solid #f39c12;margin-bottom:8px}
+    .alert-row.red{background:#fff0f0;border-color:#e74c3c}
+    .alert-row.purple{background:#faf0ff;border-color:#9b59b6}
+    .alert-icon{font-size:20px;flex-shrink:0}
+    .alert-txt{flex:1}
+    .alert-txt strong{font-size:13px;display:block}
+    .alert-txt span{font-size:11px;color:#888}
+    .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+    .tag-green{background:#eafaf1;color:#1e8449}
+    .tag-red{background:#fdecea;color:#c0392b}
+    .tag-orange{background:#fef9e7;color:#b7770d}
+    .tag-purple{background:#f5eef8;color:#7d3c98}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;border-bottom:2px solid #eee;color:#888}
+    td{padding:8px 10px;border-bottom:1px solid #f4f4f4}
+    .scan-box{border:2px dashed #27ae60;border-radius:10px;padding:32px 20px;text-align:center;background:#f9fff9}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+    .btn{padding:6px 12px;border:none;border-radius:5px;cursor:pointer;font-weight:700}
+    .btn-green{background:#27ae60;color:#fff}
+    .btn-red{background:#e74c3c;color:#fff}
+    .toast{position:fixed;bottom:20px;right:20px;background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+
+<div id="page-app">
+  <div class="header">
+    <h1>🌿 Eco-Tracker Dashboard</h1>
+    <div class="header-right">
+      <span class="role-tag" id="hdr-role">Member</span>
+      <span id="hdr-name">User</span>
+      <button class="logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+  
+  <div class="nav">
+    <div class="nav-item active" onclick="showTab('dashboard', this)">Dashboard</div>
+    <div class="nav-item" onclick="showTab('scan', this)">Scan & Add Stock</div>
+    <div class="nav-item" onclick="showTab('inventory', this)">Inventory</div>
+    <div class="nav-item" onclick="showTab('emails', this)">Email Log</div>
+  </div>
+
+  <div class="main">
+    <div id="tab-dashboard" class="screen active">
+      <div class="metrics" id="metrics-panel">
+        <div class="met"><div class="met-val" id="m-total">0</div><div class="met-lab">Total Products</div></div>
+        <div class="met r"><div class="met-val" id="m-exp">0</div><div class="met-lab">Expired / Critical</div></div>
+        <div class="met o"><div class="met-val" id="m-low">0</div><div class="met-lab">Low Stock</div></div>
+      </div>
+      <div class="card">
+        <h3>Expiry Alerts</h3>
+        <div id="expiry-alerts-list"></div>
+      </div>
+      <div class="card">
+        <h3>Stock Alerts</h3>
+        <div id="stock-alerts-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-scan" class="screen">
+      <div class="scan-box">
+        <h3>📷 Hardware Capture Interface</h3>
+        <button class="btn btn-green" onclick="startCam()">Start Camera Engine</button>
+        <video id="qr-vid" style="display:none;width:220px;height:220px;margin:10px auto;" playsinline></video>
+      </div>
+      <div class="card" style="margin-top:15px">
+        <h3>Manual Warehouse Insertion</h3>
+        <div class="form-row">
+          <div><label>Product Name *</label><input id="p-name" /></div>
+          <div><label>Quantity *</label><input type="number" id="p-qty" /></div>
+        </div>
+        <div class="form-row3">
+          <div><label>Min Stock Threshold</label><input type="number" id="p-min" value="5" /></div>
+          <div><label>Expiration Date *</label><input type="date" id="p-exp" /></div>
+        </div>
+        <button class="btn btn-green" onclick="addManualItem()">Commit to Ledger</button>
+      </div>
+    </div>
+
+    <div id="tab-inventory" class="screen">
+      <div class="card">
+        <div style="display:flex;gap:10px;margin-bottom:15px">
+          <input id="inv-search" placeholder="Search product fields..." oninput="filterInventory()" />
+        </div>
+        <table>
+          <thead>
+            <tr><th>Product Description</th><th>Available Stock</th><th>Boundary Status</th><th>Expiry Point</th></tr>
+          </thead>
+          <tbody id="inventory-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-emails" class="screen">
+      <div class="card">
+        <h3>Dispatched Alert Transmission Records</h3>
+        <div id="email-log-list" style="margin-top:15px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script>
+const token = localStorage.getItem("token");
+if (!token) window.location.href = "/login";
+
+document.getElementById("hdr-name").textContent = localStorage.getItem("username") || "User";
+
+function showTab(tabId, el) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("tab-" + tabId).classList.add("active");
+  el.classList.add("active");
+  
+  if (tabId === 'dashboard') loadDashboardData();
+  if (tabId === 'inventory') loadInventoryData();
+}
+
+async function loadDashboardData() {
+  try {
+    const res = await fetch("/api/dashboard", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    
+    document.getElementById("m-total").textContent = data.metrics.total_products;
+    document.getElementById("m-exp").textContent = data.metrics.expiry_count;
+    document.getElementById("m-low").textContent = data.metrics.low_stock_count;
+
+    const expContainer = document.getElementById("expiry-alerts-list");
+    expContainer.innerHTML = data.expiry_alerts.length ? "" : "<p>No active expiry hazards</p>";
+    data.expiry_alerts.forEach(i => {
+      expContainer.innerHTML += `
+        <div class="alert-row red">
+          <div class="alert-txt"><strong>${i.name}</strong> <span>Expires soon (${i.days_left}d remaining)</span></div>
+        </div>`;
+    });
+
+    const stockContainer = document.getElementById("stock-alerts-list");
+    stockContainer.innerHTML = data.low_stock_alerts.length ? "" : "<p>All stock counts normal</p>";
+    data.low_stock_alerts.forEach(i => {
+      stockContainer.innerHTML += `
+        <div class="alert-row purple">
+          <div class="alert-txt"><strong>${i.name}</strong> <span>Low Volume Warning: Level at ${i.qty} units</span></div>
+        </div>`;
+    });
+  } catch (err) { toast("Error updating telemetry counters"); }
+}
+
+async function addManualItem() {
+  const name = document.getElementById("p-name").value;
+  const qty = parseInt(document.getElementById("p-qty").value);
+  const min = parseInt(document.getElementById("p-min").value);
+  const exp = document.getElementById("p-exp").value;
+
+  if (!name || !qty || !exp) { alert("Missing required field parameters"); return; }
+
+  try {
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name, qty, min, exp })
+    });
+    if (res.ok) {
+      toast("Asset committed successfully!");
+      document.getElementById("p-name").value = "";
+      document.getElementById("p-qty").value = "";
+    }
+  } catch (e) { toast("Ledger write rejected"); }
+}
+
+async function loadInventoryData() {
+  try {
+    const res = await fetch("/api/dashboard", { headers: { "Authorization": `Bearer ${token}` } });
+    const data = await res.json();
+    window.cachedInventory = data.expiry_alerts.concat(data.low_stock_alerts); 
+    renderInventoryRows(window.cachedInventory);
+  } catch (e) { toast("Error downloading dataset"); }
+}
+
+function renderInventoryRows(items) {
+  const body = document.getElementById("inventory-table-body");
+  body.innerHTML = items.length ? "" : "<tr><td colspan='4'>Empty dynamic partition allocation</td></tr>";
+  items.forEach(i => {
+    body.innerHTML += `
+      <tr>
+        <td><strong>${i.name}</strong></td>
+        <td>${i.qty}</td>
+        <td><span class="tag tag-orange">Monitored</span></td>
+        <td>${i.exp || "None Specified"}</td>
+      </tr>`;
+  });
+}
+
+function doLogout() {
+  localStorage.clear();
+  window.location.href = "/login";
+}
+
+function toast(m) {
+  const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+window.onload = () => { loadDashboardData(); };
+</script>
+</body>
+</html>
