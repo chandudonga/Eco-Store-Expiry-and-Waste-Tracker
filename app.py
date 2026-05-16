@@ -8,18 +8,23 @@ from flask_jwt_extended import (
     jwt_required, get_jwt_identity
 )
 from apscheduler.schedulers.background import BackgroundScheduler
+import resend
 
-# ── 1. APP INITIALIZATION (MUST BE FIRST) ──────────────────────────────────
+# ── 1. APP INITIALIZATION ──────────────────────────────────────────────────
 app = Flask(__name__)
 
 # ── 2. CONFIGURATION ─────────────────────────────────────────────────────────
 class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "eco-tracker-secure-key-2026")
-    # This database path works for both local development and Render
     DATABASE = "eco_tracker.db" 
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 
 app.config["JWT_SECRET_KEY"] = Config.JWT_SECRET_KEY
 jwt = JWTManager(app)
+
+# Initialize Resend if the API key is present
+if Config.RESEND_API_KEY:
+    resend.api_key = Config.RESEND_API_KEY
 
 # ── 3. DATABASE HELPERS ──────────────────────────────────────────────────────
 def get_db():
@@ -50,8 +55,60 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT, type TEXT, name TEXT, msg TEXT)""")
         conn.commit()
 
-# ── 4. API ROUTES ────────────────────────────────────────────────────────────
+# ── 4. EMAIL AUTOMATION TASK ──────────────────────────────────────────────────
+def check_and_send_emails():
+    """Loops through all stores, checks for expiring products, and sends an automated summary email."""
+    if not os.environ.get("RESEND_API_KEY"):
+        print("Resend API key missing. Skipping background email verification.")
+        return
 
+    # Open isolated DB connection for background execution thread
+    with sqlite3.connect(Config.DATABASE) as conn:
+        conn.row_factory = sqlite3.Row
+        db = conn.cursor()
+        
+        # Pull store admins to dispatch warnings
+        users = db.execute("SELECT email, store_name FROM users WHERE role = 'admin'").fetchall()
+        now = datetime.now()
+        
+        for user in users:
+            store = user["store_name"]
+            recipient_email = user["email"]
+            
+            products = db.execute("SELECT * FROM products WHERE store_name = ?", (store,)).fetchall()
+            expiring_items = []
+            
+            for p in products:
+                if p["exp"]:
+                    try:
+                        expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
+                        d_left = (expiry_date - now).days
+                        # Requirement: 3-4 day alerting boundary
+                        if d_left <= 4:
+                            expiring_items.append(f"- {p['name']} (Expires in {max(0, d_left)} days | Current Stock: {p['qty']})")
+                    except ValueError:
+                        pass # Ignore malformed date strings safely
+            
+            if expiring_items:
+                email_body = f"Hello Admin,\n\nThe following items in your store '{store}' are approaching expiration limits:\n\n" + "\n".join(expiring_items)
+                
+                try:
+                    resend.Emails.send({
+                        "from": "Eco Tracker <onboarding@resend.dev>",
+                        "to": recipient_email,
+                        "subject": f"⚠️ Expiry Warning Summary: {store}",
+                        "text": email_body
+                    })
+                    
+                    db.execute("INSERT INTO email_log (store_name, type, name, msg) VALUES (?, ?, ?, ?)",
+                               (store, "Expiry Alert Summary", recipient_email, "Dispatched successfully via background worker."))
+                    conn.commit()
+                    print(f"Background automation successfully emailed {recipient_email}")
+                    
+                except Exception as e:
+                    print(f"Failed handling email execution context for {recipient_email}: {str(e)}")
+
+# ── 5. API ROUTES ────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
     return render_template('store.html')
@@ -76,7 +133,6 @@ def login():
     user = db.execute("SELECT * FROM users WHERE email = ?", (data["email"].lower(),)).fetchone()
     
     if user and bcrypt.checkpw(data["password"].encode('utf-8'), user["password"].encode('utf-8')):
-        # Token carries store_name to isolate data
         token = create_access_token(
             identity={"id": user["id"], "store_name": user["store_name"]}, 
             expires_delta=timedelta(days=1)
@@ -91,7 +147,6 @@ def dashboard():
     store = identity["store_name"]
     db = get_db()
     
-    # Isolation: Only fetch products belonging to this specific store
     rows = db.execute("SELECT * FROM products WHERE store_name = ?", (store,)).fetchall()
     products = [dict(r) for r in rows]
     
@@ -100,7 +155,6 @@ def dashboard():
     low_stock_alerts = []
     
     for p in products:
-        # Expiry Logic (Requirement: 3-4 day window)
         if p["exp"]:
             try:
                 expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
@@ -108,9 +162,9 @@ def dashboard():
                 if d_left <= 4:
                     p["days_left"] = d_left
                     expiry_alerts.append(p)
-            except: pass
+            except: 
+                pass
 
-        # Stock Logic
         if p["qty"] <= (p["min_qty"] or 0):
             low_stock_alerts.append(p)
 
@@ -137,14 +191,14 @@ def add_product():
     db.commit()
     return jsonify({"message": "Product added successfully"}), 201
 
-# ── 5. RUNNER ────────────────────────────────────────────────────────────────
+# ── 6. RUNNER ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     init_db()
     
-    # Background scheduler can be used here for automated email tasks in the future
+    # Initialize the interval background tracker
     scheduler = BackgroundScheduler()
+    scheduler.add_job(func=check_and_send_emails, trigger="interval", hours=24)
     scheduler.start()
     
-    # Render and other hosts use the PORT environment variable
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
