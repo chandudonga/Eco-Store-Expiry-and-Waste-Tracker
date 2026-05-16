@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Eco-Tracker - Register</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f4f0; min-height: 100vh; color: #222; }
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .auth-box { background: #fff; border-radius: 12px; padding: 28px; width: 380px; max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .logo { text-align: center; margin-bottom: 20px; }
+    .logo-icon { width: 56px; height: 56px; background: #27ae60; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; margin: 0 auto 8px; }
+    .logo h2 { font-size: 20px; color: #27ae60; margin-bottom: 2px; }
+    .logo p { font-size: 12px; color: #888; }
+    .tabs { display: flex; background: #f0f4f0; border-radius: 8px; padding: 3px; margin-bottom: 16px; }
+    .tab-link { flex: 1; padding: 8px; text-align: center; font-size: 13px; text-decoration: none; border-radius: 6px; color: #666; font-weight: normal; }
+    .tab-link.active { background: #27ae60; color: #fff; font-weight: 700; }
+    label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; margin-top: 10px; }
+    input { width: 100%; padding: 9px 11px; border: 1px solid #ddd; border-radius: 7px; font-size: 13px; outline: none; background: #fff; }
+    input:focus { border-color: #27ae60; }
+    .role-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .role-card { border: 2px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; background: #fff; }
+    .role-card.sel { border-color: #27ae60; background: #f0faf4; }
+    .role-card .ri { font-size: 22px; margin-bottom: 4px; }
+    .role-card .rl { font-size: 12px; color: #555; font-weight: 700; }
+    .role-card.sel .rl { color: #27ae60; }
+    .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 14px; background: #27ae60; color: #fff; }
+    .btn:hover { background: #219a55; }
+    .msg { padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-top: 8px; display: none; }
+    .msg.err { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; }
+    .msg.ok { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
+  </style>
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-box">
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <h2>Eco-Tracker</h2>
+      <p>Inventory & Expiry System</p>
+    </div>
+    
+    <div class="tabs">
+      <a href="/login" class="tab-link">Login</a>
+      <a href="/register" class="tab-link active">Create Account</a>
+    </div>
+
+    <div id="reg-panel">
+      <label>Full Name</label><input id="r-name" placeholder="e.g. Ravi Kumar" />
+      <label>Email</label><input id="r-email" type="email" placeholder="ravi@store.com" />
+      <label>Store Name</label><input id="r-store" placeholder="e.g. Green Mart" />
+      
+      <label>Role</label>
+      <div class="role-row">
+        <div class="role-card sel" id="ro" onclick="pickRole('owner')">
+          <div class="ri">★</div><div class="rl">Owner</div>
+        </div>
+        <div class="role-card" id="rm" onclick="pickRole('manager')">
+          <div class="ri">👤</div><div class="rl">Manager</div>
+        </div>
+      </div>
+      
+      <label>Password</label><input id="r-pass" type="password" placeholder="Min 6 characters" />
+      <label>Confirm Password</label><input id="r-pass2" type="password" placeholder="Re-enter password" />
+      <div class="msg err" id="r-err"></div>
+      <div class="msg ok" id="r-ok"></div>
+      <button class="btn" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedRole = 'owner';
+
+function pickRole(role) {
+  selectedRole = role;
+  document.getElementById('ro').classList.toggle('sel', role === 'owner');
+  document.getElementById('rm').classList.toggle('sel', role === 'manager');
+}
+
+async function doRegister() {
+  const name = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim().toLowerCase();
+  const store_name = document.getElementById('r-store').value.trim();
+  const password = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  
+  const errDiv = document.getElementById('r-err');
+  const okDiv = document.getElementById('r-ok');
+  errDiv.style.display = 'none';
+  okDiv.style.display = 'none';
+
+  if (!name || !email || !store_name || !password) {
+    errDiv.textContent = 'All fields are required.';
+    errDiv.style.display = 'block';
+    return;
+  }
+  if (password.length < 6) {
+    errDiv.textContent = 'Password must be at least 6 characters.';
+    errDiv.style.display = 'block';
+    return;
+  }
+  if (password !== pass2) {
+    errDiv.textContent = 'Passwords do not match.';
+    errDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, store_name, password, role: selectedRole })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errDiv.textContent = data.error || 'Registration failed.';
+      errDiv.style.display = 'block';
+    } else {
+      okDiv.textContent = 'Account created successfully! Proceeding to login page...';
+      okDiv.style.display = 'block';
+      setTimeout(() => window.location.href = '/login', 2000);
+    }
+  } catch (err) {
+    errDiv.textContent = 'Server processing error.';
+    errDiv.style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>
