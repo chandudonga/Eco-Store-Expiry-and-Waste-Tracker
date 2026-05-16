@@ -120,16 +120,38 @@ def dashboard_view():
 # ── 6. API AUTH & DATA ENDPOINTS ──────────────────────────────────────────────
 @app.route("/api/auth/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    hashed = bcrypt.hashpw(data["password"].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    db = get_db()
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Missing request payload"}), 400
+
+        # Extract fields safely using .get() to prevent server KeyError crashes
+        name = data.get("name")
+        email = data.get("email")
+        store_name = data.get("store_name")
+        password = data.get("password")
+        role = data.get("role", "member")  # Default to 'member' if not chosen
+
+        # Check for mandatory missing parameters
+        if not all([name, email, store_name, password]):
+            return jsonify({"error": "Missing required fields (Name, Email, Store Name, or Password)"}), 400
+
+        # Hash password safely
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        db = get_db()
         db.execute("INSERT INTO users (name, email, store_name, password, role) VALUES (?,?,?,?,?)",
-                   (data["name"], data["email"].lower(), data["store_name"], hashed, data["role"]))
+                   (name, email.lower(), store_name, hashed, role))
         db.commit()
+        
         return jsonify({"message": "Registered successfully"}), 201
+
     except sqlite3.IntegrityError:
         return jsonify({"error": "Email already exists"}), 409
+    except Exception as e:
+        # This catches any other hidden error and prints it to your terminal console log
+        print(f"CRITICAL REGISTRATION ERROR: {str(e)}")
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
