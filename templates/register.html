@@ -63,8 +63,10 @@
       
       <label>Password</label><input id="r-pass" type="password" placeholder="Min 6 characters" />
       <label>Confirm Password</label><input id="r-pass2" type="password" placeholder="Re-enter password" />
+      
       <div class="msg err" id="r-err"></div>
       <div class="msg ok" id="r-ok"></div>
+      
       <button class="btn" onclick="doRegister()">Create Account</button>
     </div>
   </div>
@@ -80,6 +82,7 @@ function pickRole(role) {
 }
 
 async function doRegister() {
+  // Pull fields matching your exact element DOM identifiers
   const name = document.getElementById('r-name').value.trim();
   const email = document.getElementById('r-email').value.trim().toLowerCase();
   const store_name = document.getElementById('r-store').value.trim();
@@ -88,9 +91,12 @@ async function doRegister() {
   
   const errDiv = document.getElementById('r-err');
   const okDiv = document.getElementById('r-ok');
+  
+  // Hide warning elements before processing
   errDiv.style.display = 'none';
   okDiv.style.display = 'none';
 
+  // Front-end sanity boundaries validations
   if (!name || !email || !store_name || !password) {
     errDiv.textContent = 'All fields are required.';
     errDiv.style.display = 'block';
@@ -111,11 +117,19 @@ async function doRegister() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, store_name, password, role: selectedRole })
+      body: JSON.stringify({ 
+        name: name, 
+        email: email, 
+        store_name: store_name, 
+        password: password, 
+        role: selectedRole 
+      })
     });
+    
     const data = await res.json();
 
     if (!res.ok) {
+      // Passes clean targeted messages sent back by our updated Python endpoint
       errDiv.textContent = data.error || 'Registration failed.';
       errDiv.style.display = 'block';
     } else {
@@ -124,7 +138,8 @@ async function doRegister() {
       setTimeout(() => window.location.href = '/login', 2000);
     }
   } catch (err) {
-    errDiv.textContent = 'Server processing error.';
+    // This catches actual hardware/network dropped loops safely now
+    errDiv.textContent = 'Network communication error. Check your server connection.';
     errDiv.style.display = 'block';
   }
 }
