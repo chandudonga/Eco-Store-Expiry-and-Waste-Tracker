@@ -1,0 +1,604 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f4f0;min-height:100vh;color:#222}
+.page{display:none}.page.active{display:block}
+
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.auth-box{background:#fff;border-radius:12px;padding:28px;width:380px;max-width:100%;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+.logo{text-align:center;margin-bottom:20px}
+.logo-icon{width:56px;height:56px;background:#27ae60;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin:0 auto 8px}
+.logo h2{font-size:20px;color:#27ae60;margin-bottom:2px}
+.logo p{font-size:12px;color:#888}
+.tabs{display:flex;background:#f0f4f0;border-radius:8px;padding:3px;margin-bottom:16px}
+.tab-btn{flex:1;padding:8px;text-align:center;font-size:13px;cursor:pointer;border-radius:6px;color:#666;border:none;background:transparent;font-family:inherit}
+.tab-btn.active{background:#27ae60;color:#fff;font-weight:700}
+label{font-size:12px;color:#555;display:block;margin-bottom:4px;margin-top:10px}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:#222;background:#fff}
+input:focus,select:focus{border-color:#27ae60}
+.role-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.role-card{border:2px solid #ddd;border-radius:8px;padding:12px;text-align:center;cursor:pointer}
+.role-card.sel{border-color:#27ae60;background:#f0faf4}
+.role-card .ri{font-size:22px;margin-bottom:4px}
+.role-card .rl{font-size:12px;color:#555;font-weight:700}
+.role-card.sel .rl{color:#27ae60}
+.btn{width:100%;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:14px;font-family:inherit}
+.btn-green{background:#27ae60;color:#fff}.btn-green:hover{background:#219a55}
+.btn-red{background:#e74c3c;color:#fff}
+.btn-sm{width:auto;padding:5px 12px;font-size:12px;margin-top:0;border-radius:5px}
+.btn-outline{background:#fff;border:1px solid #27ae60;color:#27ae60}
+.msg{padding:8px 12px;border-radius:6px;font-size:12px;margin-top:8px;display:none}
+.msg.err{background:#fdecea;color:#c0392b;border:1px solid #f5c6cb}
+.msg.ok{background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf}
+
+.header{background:#27ae60;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:16px}
+.header-right{display:flex;align-items:center;gap:8px;font-size:12px}
+.role-tag{background:rgba(255,255,255,0.25);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.logout{background:rgba(255,255,255,0.2);border:none;color:#fff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:inherit}
+.nav{display:flex;background:#fff;border-bottom:2px solid #eee;overflow-x:auto}
+.nav-item{padding:11px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#666;white-space:nowrap;font-weight:600;margin-bottom:-2px}
+.nav-item.active{color:#27ae60;border-bottom-color:#27ae60}
+.main{padding:16px;max-width:960px;margin:0 auto}
+.screen{display:none}.screen.active{display:block}
+
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.met{background:#fff;border-radius:10px;padding:14px;text-align:center;border-left:4px solid #27ae60}
+.met.r{border-color:#e74c3c}.met.o{border-color:#f39c12}.met.p{border-color:#9b59b6}
+.met-val{font-size:28px;font-weight:700;color:#222}
+.met.r .met-val{color:#e74c3c}.met.o .met-val{color:#f39c12}.met.p .met-val{color:#9b59b6}
+.met-lab{font-size:11px;color:#888;margin-top:2px}
+
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{font-size:13px;color:#888;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
+.alert-row{display:flex;align-items:center;gap:10px;padding:10px;background:#fff9f0;border-radius:7px;border-left:3px solid #f39c12;margin-bottom:8px}
+.alert-row.red{background:#fff0f0;border-color:#e74c3c}
+.alert-row.purple{background:#faf0ff;border-color:#9b59b6}
+.alert-icon{font-size:20px;flex-shrink:0}
+.alert-txt{flex:1}
+.alert-txt strong{font-size:13px;display:block}
+.alert-txt span{font-size:11px;color:#888}
+.email-badge{background:#eaf3ff;color:#2471a3;font-size:10px;padding:2px 7px;border-radius:4px;margin-left:6px;font-weight:700}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.tag-green{background:#eafaf1;color:#1e8449}
+.tag-red{background:#fdecea;color:#c0392b}
+.tag-orange{background:#fef9e7;color:#b7770d}
+.tag-purple{background:#f5eef8;color:#7d3c98}
+.tag-blue{background:#eaf3ff;color:#2471a3}
+.tag-gray{background:#f4f4f4;color:#555}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;border-bottom:2px solid #eee;font-size:11px;color:#888;text-transform:uppercase}
+td{padding:8px 10px;border-bottom:1px solid #f4f4f4;vertical-align:middle}
+tr:hover td{background:#fafffe}
+.progress{height:6px;background:#eee;border-radius:3px;overflow:hidden;min-width:60px}
+.progress-fill{height:100%;border-radius:3px;background:#27ae60}
+
+.scan-box{border:2px dashed #27ae60;border-radius:10px;padding:32px 20px;text-align:center;background:#f9fff9;margin-bottom:16px}
+.scan-box .si{font-size:48px;margin-bottom:8px}
+.scan-box h3{font-size:16px;color:#27ae60;margin-bottom:6px}
+.scan-box p{font-size:12px;color:#888;line-height:1.6;margin-bottom:16px}
+.scan-result{background:#eafaf1;border:1px solid #a9dfbf;border-radius:8px;padding:14px;margin-top:14px;display:none}
+.sr-title{font-size:13px;font-weight:700;color:#1e8449;margin-bottom:10px}
+.sr-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #d5f5e3}
+.sr-row:last-child{border-bottom:none}
+.sr-key{color:#555}.sr-val{font-weight:700;color:#222}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.divider{border:none;border-top:1px solid #eee;margin:16px 0}
+
+.email-log-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f4f4f4}
+.email-log-row:last-child{border-bottom:none}
+.el-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.toast{position:fixed;bottom:20px;right:20px;background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+
+<div id="page-auth" class="page active">
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div class="logo">
+        <div class="logo-icon">🌿</div>
+        <h2>Eco-Tracker</h2>
+        <p>Inventory & Expiry System</p>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchAuth('login',this)">Login</button>
+        <button class="tab-btn" onclick="switchAuth('reg',this)">Create Account</button>
+      </div>
+
+      <div id="login-panel">
+        <label>Email</label>
+        <input id="l-email" type="email" placeholder="you@store.com" />
+        <label>Password</label>
+        <input id="l-pass" type="password" placeholder="••••••••" />
+        <div class="msg err" id="l-err"></div>
+        <button class="btn btn-green" onclick="doLogin()">Login</button>
+        <div id="acc-preview" style="margin-top:12px;display:none">
+          <div style="font-size:11px;color:#888;margin-bottom:6px">Registered accounts:</div>
+          <div id="acc-list"></div>
+        </div>
+      </div>
+
+      <div id="reg-panel" style="display:none">
+        <label>Full Name</label><input id="r-name" placeholder="e.g. Ravi Kumar" />
+        <label>Email</label><input id="r-email" type="email" placeholder="ravi@store.com" />
+        <label>Store Name</label><input id="r-store" placeholder="e.g. Green Mart - Bhimavaram" />
+        <label>Role</label>
+        <div class="role-row">
+          <div class="role-card sel" id="ro" onclick="pickRole('owner',this)">
+            <div class="ri">★</div><div class="rl">Owner</div>
+            <div style="font-size:10px;color:#888;margin-top:2px">Full access</div>
+          </div>
+          <div class="role-card" id="rm" onclick="pickRole('manager',this)">
+            <div class="ri">👤</div><div class="rl">Manager</div>
+            <div style="font-size:10px;color:#888;margin-top:2px">Inventory access</div>
+          </div>
+        </div>
+        <label>Password</label><input id="r-pass" type="password" placeholder="Min 6 characters" />
+        <label>Confirm Password</label><input id="r-pass2" type="password" placeholder="Re-enter password" />
+        <div class="msg err" id="r-err"></div>
+        <div class="msg ok" id="r-ok"></div>
+        <button class="btn btn-green" onclick="doRegister()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-app" class="page">
+  <div class="header">
+    <h1>🌿 Eco-Tracker</h1>
+    <div class="header-right">
+      <span class="role-tag" id="hdr-role">Owner</span>
+      <span id="hdr-name">User</span>
+      <button class="logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="nav">
+    <div class="nav-item active" onclick="showTab('dashboard',this)">Dashboard</div>
+    <div class="nav-item" onclick="showTab('scan',this)">Scan & Add Stock</div>
+    <div class="nav-item" onclick="showTab('inventory',this)">Inventory</div>
+    <div class="nav-item" onclick="showTab('emails',this)">Email Log</div>
+    <div class="nav-item" id="nav-acc" style="display:none" onclick="showTab('accounts',this)">Accounts</div>
+  </div>
+  <div class="main">
+
+    <div id="tab-dashboard" class="screen active">
+      <div class="metrics" id="metrics"></div>
+      <div class="card">
+        <h3>Expiry Alerts</h3>
+        <div id="expiry-alerts"><p style="color:#aaa;font-size:13px">No alerts</p></div>
+      </div>
+      <div class="card">
+        <h3>Stock Alerts</h3>
+        <div id="stock-alerts"><p style="color:#aaa;font-size:13px">No alerts</p></div>
+      </div>
+    </div>
+
+    <div id="tab-scan" class="screen">
+      <div class="scan-box">
+        <div class="si">📷</div>
+        <h3>Scan QR Code</h3>
+        <p>Point your camera at a product QR code to load details automatically.</p>
+        <button class="btn btn-green" style="width:auto;padding:10px 24px" id="cam-btn" onclick="startCam()">Start Camera</button>
+        <button class="btn btn-outline" style="width:auto;padding:10px 24px;display:none" id="stop-btn" onclick="stopCam()">Stop</button>
+        <div id="cam-status" style="margin-top:8px;font-size:12px;color:#888"></div>
+        <video id="qr-vid" style="display:none;width:200px;height:200px;border-radius:8px;object-fit:cover;margin:10px auto;border:2px solid #27ae60" playsinline></video>
+      </div>
+      <div class="scan-result" id="scan-result">
+        <div class="sr-title">✅ Product Scanned</div>
+        <div id="sr-fields"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-green btn-sm" onclick="confirmScan()">Save to Inventory</button>
+          <button class="btn btn-sm" style="background:#eee;border:none;cursor:pointer" onclick="cancelScan()">Cancel</button>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="card" style="margin-bottom:0">
+        <h3>Manual Entry</h3>
+        <div class="form-row">
+          <div><label>Product Name *</label><input id="p-name" placeholder="e.g. Organic Milk" /></div>
+          <div><label>Batch ID</label><input id="p-batch" placeholder="Auto if empty" /></div>
+        </div>
+        <div class="form-row3">
+          <div><label>Category</label>
+            <select id="p-cat"><option>Dairy</option><option>Produce</option><option>Meat</option><option>Bakery</option><option>Frozen</option><option>Beverages</option><option>Dry Goods</option><option>Supplements</option><option>Other</option></select>
+          </div>
+          <div><label>Quantity *</label><input type="number" id="p-qty" placeholder="e.g. 100" min="0" /></div>
+          <div><label>Min Stock Alert</label><input type="number" id="p-min" placeholder="e.g. 20" min="0" /></div>
+        </div>
+        <div class="form-row3">
+          <div><label>Expiry Date *</label><input type="date" id="p-exp" /></div>
+          <div><label>Unit Price (₹)</label><input type="number" id="p-price" placeholder="0.00" step="0.01" min="0" /></div>
+          <div><label>Location</label><input id="p-loc" placeholder="e.g. Shelf A-1" /></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-green btn-sm" onclick="addManual()">Save to Inventory</button>
+          <button class="btn btn-sm" style="background:#eee;border:none;cursor:pointer" onclick="clearForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-inventory" class="screen">
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input id="inv-q" placeholder="Search..." style="flex:1;min-width:120px" oninput="renderInv()" />
+          <select id="inv-f" style="width:140px" onchange="renderInv()">
+            <option value="">All</option>
+            <option value="exp">Expired / Critical</option>
+            <option value="low">Low / Out of Stock</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Product</th><th>Qty</th><th>Stock</th><th>Expiry</th><th>Days</th><th>Status</th><th>Price</th><th></th></tr></thead>
+            <tbody id="inv-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-emails" class="screen">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">Email Alert Log</h3>
+          <button class="btn btn-sm" style="background:#eee;border:none;cursor:pointer" onclick="clearEmails()">Clear</button>
+        </div>
+        <div id="email-list"><p style="color:#aaa;font-size:13px;text-align:center;padding:20px">No emails sent yet</p></div>
+      </div>
+    </div>
+
+    <div id="tab-accounts" class="screen">
+      <div class="card">
+        <h3>All Accounts — Your Store</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">Only visible to Store Owners.</p>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="acc-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script>
+let accounts=[], inventory=[], emails=[], user=null, role='owner', scanTimer=null, stream=null, pending=null;
+
+function pickRole(r,el){
+  role=r;
+  document.getElementById('ro').classList.toggle('sel',r==='owner');
+  document.getElementById('rm').classList.toggle('sel',r==='manager');
+}
+
+function switchAuth(t,el){
+  document.getElementById('login-panel').style.display=t==='login'?'block':'none';
+  document.getElementById('reg-panel').style.display=t==='reg'?'block':'none';
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(t==='login') refreshAccList();
+}
+
+function doRegister(){
+  const n=document.getElementById('r-name').value.trim();
+  const e=document.getElementById('r-email').value.trim().toLowerCase();
+  const s=document.getElementById('r-store').value.trim();
+  const p=document.getElementById('r-pass').value;
+  const p2=document.getElementById('r-pass2').value;
+  document.getElementById('r-err').style.display='none';
+  document.getElementById('r-ok').style.display='none';
+  if(!n||!e||!s||!p){return showErr('r-err','All fields are required.');}
+  if(!e.includes('@')){return showErr('r-err','Enter a valid email.');}
+  if(p.length<6){return showErr('r-err','Password must be at least 6 characters.');}
+  if(p!==p2){return showErr('r-err','Passwords do not match.');}
+  if(accounts.find(a=>a.email===e)){return showErr('r-err','Email already registered.');}
+  accounts.push({id:Date.now(),name:n,email:e,store:s,role,pass:p,joined:new Date().toLocaleDateString()});
+  const ok=document.getElementById('r-ok');
+  ok.textContent='Account created! You can now login.';ok.style.display='block';
+  ['r-name','r-email','r-store','r-pass','r-pass2'].forEach(i=>document.getElementById(i).value='');
+  toast('Account created: '+n);
+}
+
+function showErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display='block';}
+
+function refreshAccList(){
+  const wrap=document.getElementById('acc-preview');
+  const list=document.getElementById('acc-list');
+  if(!accounts.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  list.innerHTML=accounts.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f9fff9;border-radius:6px;margin-bottom:4px;font-size:12px">
+    <div><strong>${a.name}</strong> <span style="color:#888">${a.email}</span></div>
+    <span class="tag ${a.role==='owner'?'tag-orange':'tag-blue'}">${a.role}</span>
+  </div>`).join('');
+}
+
+function doLogin(){
+  const e=document.getElementById('l-email').value.trim().toLowerCase();
+  const p=document.getElementById('l-pass').value;
+  document.getElementById('l-err').style.display='none';
+  if(!e||!p){return showErr('l-err','Enter email and password.');}
+  const acc=accounts.find(a=>a.email===e&&a.pass===p);
+  if(!acc){return showErr('l-err','Wrong email or password.');}
+  user=acc;
+  document.getElementById('page-auth').classList.remove('active');
+  document.getElementById('page-app').classList.add('active');
+  document.getElementById('hdr-name').textContent=acc.name;
+  document.getElementById('hdr-role').textContent=acc.role==='owner'?'Owner':'Manager';
+  document.getElementById('nav-acc').style.display=acc.role==='owner'?'block':'none';
+  if(!inventory.length) seedData();
+  scanEmails(); renderDash();
+}
+
+function doLogout(){
+  stopCam(); user=null;
+  document.getElementById('page-app').classList.remove('active');
+  document.getElementById('page-auth').classList.add('active');
+  document.getElementById('l-email').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('l-err').style.display='none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-dashboard').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.nav-item').classList.add('active');
+  refreshAccList();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  if(document.getElementById('reg-panel').style.display==='block') doRegister();
+  else doLogin();
+});
+
+function seedData(){
+  const D=86400000,n=Date.now();
+  inventory=[
+    {id:1,name:'Organic Milk',batch:'B001',cat:'Dairy',qty:12,min:30,exp:d(n+D),price:45,loc:'Cooler A'},
+    {id:2,name:'Greek Yogurt',batch:'B002',cat:'Dairy',qty:0,min:25,exp:d(n+D*0.5),price:60,loc:'Cooler A'},
+    {id:3,name:'Baby Spinach',batch:'B003',cat:'Produce',qty:180,min:50,exp:d(n+D*3),price:30,loc:'Shelf B'},
+    {id:4,name:'Free-Range Eggs',batch:'B004',cat:'Dairy',qty:300,min:60,exp:d(n+D*10),price:90,loc:'Cooler B'},
+    {id:5,name:'Sourdough Bread',batch:'B005',cat:'Bakery',qty:0,min:20,exp:d(n-D*0.2),price:55,loc:'Bakery Shelf'},
+    {id:6,name:'Salmon Fillet',batch:'B006',cat:'Meat',qty:8,min:20,exp:d(n+D*1.8),price:280,loc:'Freezer C'},
+    {id:7,name:'Vitamin C',batch:'B007',cat:'Supplements',qty:500,min:100,exp:d(n+D*180),price:120,loc:'Shelf D'},
+    {id:8,name:'Oat Milk',batch:'B008',cat:'Beverages',qty:15,min:40,exp:d(n+D*6),price:85,loc:'Cooler A'},
+  ];
+}
+function d(ts){return new Date(ts).toISOString().split('T')[0];}
+function days(exp){const e=new Date(exp);e.setHours(23,59,59);return(e-Date.now())/86400000;}
+function stk(i){const q=i.qty,m=i.min||0;if(q===0)return{l:'Out of Stock',c:'tag-red'};if(m&&q<=m)return{l:'Low Stock',c:'tag-purple'};return{l:'In Stock',c:'tag-green'};}
+function exp(i){const d2=days(i.exp);if(d2<0)return{l:'Expired',c:'tag-red'};if(d2<=2)return{l:'Critical',c:'tag-red'};if(d2<=7)return{l:'Warning',c:'tag-orange'};return{l:'Safe',c:'tag-green'};}
+
+const alerted=new Set();
+function logEmail(type,name,msg){
+  emails.unshift({type,name,msg,time:new Date().toLocaleTimeString(),date:new Date().toLocaleDateString()});
+  if(emails.length>60) emails.pop();
+}
+function scanEmails(){
+  inventory.forEach(i=>{
+    const d2=days(i.exp),q=i.qty,m=i.min||0;
+    const ke=i.id+'_'+(d2<0?'exp':d2<=2?'48h':d2<=7?'7d':'ok');
+    const ks=i.id+'_'+(q===0?'out':(m&&q<=m)?'low':'ok');
+    if(!alerted.has(ke)){
+      if(d2<0){logEmail('Expired',i.name,'Product expired — remove immediately.');alerted.add(ke);}
+      else if(d2<=2){logEmail('Expiry 48h',i.name,Math.round(d2*24)+'h remaining. Urgent action needed.');alerted.add(ke);}
+      else if(d2<=7){logEmail('Expiry 7d',i.name,Math.ceil(d2)+' days remaining. Plan disposal.');alerted.add(ke);}
+    }
+    if(!alerted.has(ks)){
+      if(q===0){logEmail('Out of Stock',i.name,'Zero units — restock immediately.');alerted.add(ks);}
+      else if(m&&q<=m){logEmail('Low Stock',i.name,'Only '+q+' units left (min: '+m+').');alerted.add(ks);}
+    }
+  });
+}
+
+function showTab(id,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id!=='scan') stopCam();
+  if(id==='dashboard') renderDash();
+  if(id==='inventory') renderInv();
+  if(id==='emails') renderEmails();
+  if(id==='accounts') renderAccounts();
+}
+
+function renderDash(){
+  const total=inventory.length;
+  const exd=inventory.filter(i=>days(i.exp)<0).length;
+  const crit=inventory.filter(i=>{const d2=days(i.exp);return d2>=0&&d2<=2;}).length;
+  const oos=inventory.filter(i=>i.qty===0).length;
+  const low=inventory.filter(i=>i.qty>0&&i.min&&i.qty<=i.min).length;
+  const week=inventory.filter(i=>{const d2=days(i.exp);return d2>2&&d2<=7;}).length;
+  document.getElementById('metrics').innerHTML=`
+    <div class="met"><div class="met-val">${total}</div><div class="met-lab">Total Products</div></div>
+    <div class="met r"><div class="met-val">${exd+crit}</div><div class="met-lab">Expired / Critical</div></div>
+    <div class="met o"><div class="met-val">${week}</div><div class="met-lab">Expiring This Week</div></div>
+    <div class="met r"><div class="met-val">${oos}</div><div class="met-lab">Out of Stock</div></div>
+    <div class="met p"><div class="met-val">${low}</div><div class="met-lab">Low Stock</div></div>
+    <div class="met"><div class="met-val">${inventory.reduce((a,i)=>a+i.qty,0)}</div><div class="met-lab">Total Units</div></div>`;
+
+  const exItems=inventory.filter(i=>days(i.exp)<=7).sort((a,b)=>days(a.exp)-days(b.exp));
+  document.getElementById('expiry-alerts').innerHTML=exItems.length?exItems.map(i=>{
+    const d2=days(i.exp),e=d2<0;
+    const ts=e?'Expired '+Math.abs(Math.round(d2))+'d ago':d2<=1?Math.round(d2*24)+'h left':Math.ceil(d2)+'d left';
+    return`<div class="alert-row ${e||d2<=2?'red':''}">
+      <div class="alert-icon">${e?'❌':'⚠️'}</div>
+      <div class="alert-txt"><strong>${i.name} <span class="email-badge">✉ Email Sent</span></strong>
+      <span>${i.batch} · ${i.cat} · ${i.loc}</span></div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:${e||d2<=2?'#e74c3c':'#f39c12'}">${ts}</div>
+    </div>`;}).join(''):'<p style="color:#aaa;font-size:13px">✓ No expiry alerts</p>';
+
+  const stItems=inventory.filter(i=>i.qty===0||(i.min&&i.qty<=i.min)).sort((a,b)=>a.qty-b.qty);
+  document.getElementById('stock-alerts').innerHTML=stItems.length?stItems.map(i=>{
+    const out=i.qty===0;
+    const pct=out?0:Math.min(100,Math.round((i.qty/(i.min||1))*100));
+    return`<div class="alert-row ${out?'red':'purple'}">
+      <div class="alert-icon">${out?'❌':'📉'}</div>
+      <div class="alert-txt"><strong>${i.name} <span class="email-badge">✉ Email Sent</span></strong>
+      <span>${out?'Zero units remaining':'Only '+i.qty+' units (min: '+i.min+')'}</span>
+      ${!out?`<div class="progress" style="margin-top:5px"><div class="progress-fill" style="width:${pct}%;background:#9b59b6"></div></div>`:''}
+      </div>
+      <div style="text-align:right;font-size:22px;font-weight:700;color:${out?'#e74c3c':'#9b59b6'}">${i.qty}</div>
+    </div>`;}).join(''):'<p style="color:#aaa;font-size:13px">✓ All stock levels normal</p>';
+}
+
+function renderInv(){
+  const q=(document.getElementById('inv-q').value||'').toLowerCase();
+  const f=document.getElementById('inv-f').value;
+  let list=inventory.filter(i=>{
+    if(q&&!i.name.toLowerCase().includes(q)&&!i.batch.toLowerCase().includes(q)) return false;
+    if(f==='exp'){const d2=days(i.exp);return d2<=2;}
+    if(f==='low') return i.qty===0||(i.min&&i.qty<=i.min);
+    return true;
+  });
+  const body=document.getElementById('inv-body');
+  if(!list.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">No products found</td></tr>';return;}
+  body.innerHTML=list.map(i=>{
+    const d2=days(i.exp),ss=stk(i),es=exp(i);
+    return`<tr>
+      <td><strong>${i.name}</strong><div style="font-size:11px;color:#888">${i.batch} · ${i.loc}</div></td>
+      <td style="font-weight:700;font-size:15px;color:${i.qty===0?'#e74c3c':i.min&&i.qty<=i.min?'#9b59b6':'#27ae60'}">${i.qty}</td>
+      <td><span class="tag ${ss.c}">${ss.l}</span></td>
+      <td style="font-size:12px">${i.exp}</td>
+      <td style="font-weight:700;color:${d2<0?'#e74c3c':d2<=7?'#f39c12':'#27ae60'}">${d2<0?Math.floor(d2)+'d':d2<=1?Math.round(d2*24)+'h':Math.ceil(d2)+'d'}</td>
+      <td><span class="tag ${es.c}">${es.l}</span></td>
+      <td style="font-size:12px">₹${(i.price||0).toFixed(2)}</td>
+      <td><button onclick="removeItem(${i.id})" class="btn btn-sm btn-red" style="width:auto;margin-top:0">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function removeItem(id){inventory=inventory.filter(i=>i.id!==id);renderInv();renderDash();toast('Product removed');}
+
+function renderEmails(){
+  const el=document.getElementById('email-list');
+  if(!emails.length){el.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">No emails sent yet</p>';return;}
+  const cols={'Expired':'#e74c3c','Expiry 48h':'#e74c3c','Expiry 7d':'#f39c12','Out of Stock':'#e74c3c','Low Stock':'#9b59b6'};
+  el.innerHTML=emails.map(e=>`<div class="email-log-row">
+    <div class="el-dot" style="background:${cols[e.type]||'#3498db'}"></div>
+    <div style="flex:1">
+      <div style="font-size:12px;font-weight:700;color:${cols[e.type]||'#3498db'}">${e.type} — ${e.name}</div>
+      <div style="font-size:12px;color:#555;margin-top:2px">${e.msg}</div>
+    </div>
+    <div style="font-size:11px;color:#aaa;text-align:right">${e.time}</div>
+  </div>`).join('');
+}
+
+function clearEmails(){emails=[];renderEmails();toast('Email log cleared');}
+
+function renderAccounts(){
+  if(!user||user.role!=='owner') return;
+  const list=accounts.filter(a=>a.store===user.store);
+  const body=document.getElementById('acc-body');
+  if(!list.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px">No accounts yet</td></tr>';return;}
+  body.innerHTML=list.map(a=>`<tr>
+    <td><strong>${a.name}</strong></td>
+    <td style="font-size:12px;color:#555">${a.email}</td>
+    <td><span class="tag ${a.role==='owner'?'tag-orange':'tag-blue'}">${a.role}</span></td>
+    <td style="font-size:12px;color:#888">${a.joined}</td>
+    <td>${a.id!==user.id?`<button class="btn btn-sm btn-red" style="width:auto;margin-top:0" onclick="removeAcc(${a.id})">Remove</button>`:'<span style="font-size:11px;color:#aaa">You</span>'}</td>
+  </tr>`).join('');
+}
+
+function removeAcc(id){accounts=accounts.filter(a=>a.id!==id);renderAccounts();toast('Account removed');}
+
+async function startCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const vid=document.getElementById('qr-vid');
+    vid.srcObject=stream;await vid.play();
+    vid.style.display='block';
+    document.getElementById('cam-btn').style.display='none';
+    document.getElementById('stop-btn').style.display='inline-block';
+    document.getElementById('cam-status').textContent='Camera on — point at a QR code';
+    const canvas=document.createElement('canvas');
+    const ctx=canvas.getContext('2d');
+    scanTimer=setInterval(()=>{
+      if(vid.readyState<2) return;
+      canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;
+      ctx.drawImage(vid,0,0);
+      const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+      const code=jsQR(img.data,img.width,img.height);
+      if(code){stopCam();parseQR(code.data);}
+    },300);
+  }catch(e){document.getElementById('cam-status').textContent='Camera not available — use manual entry below.';toast('Camera denied');}
+}
+
+function stopCam(){
+  if(scanTimer){clearInterval(scanTimer);scanTimer=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  const vid=document.getElementById('qr-vid');
+  if(vid){vid.style.display='none';}
+  document.getElementById('cam-btn').style.display='inline-block';
+  document.getElementById('stop-btn').style.display='none';
+  document.getElementById('cam-status').textContent='';
+}
+
+function parseQR(raw){
+  let data={};
+  try{data=JSON.parse(raw);}catch(e){
+    raw.split('\n').forEach(line=>{
+      const i=line.indexOf(':');
+      if(i<0) return;
+      const k=line.slice(0,i).trim().toLowerCase().replace(/\s+/g,'');
+      const v=line.slice(i+1).trim();
+      if(k==='name') data.name=v;
+      else if(k==='batch') data.batch=v;
+      else if(k.includes('cat')) data.cat=v;
+      else if(k.includes('qty')||k==='quantity') data.qty=parseInt(v)||0;
+      else if(k.includes('min')) data.min=parseInt(v)||0;
+      else if(k.includes('exp')) data.exp=v;
+      else if(k.includes('price')) data.price=parseFloat(v.replace(/[^0-9.]/g,''))||0;
+      else if(k.includes('loc')) data.loc=v;
+    });
+  }
+  if(!data.name){toast('No valid product data in QR');return;}
+  pending=data;
+  const preview=document.getElementById('scan-result');
+  preview.style.display='block';
+  const fields=[['Name',data.name||'—'],['Batch',data.batch||'—'],['Category',data.cat||'—'],['Quantity',(data.qty||0)+' units'],['Expiry',data.exp||'—'],['Price',data.price?'₹'+parseFloat(data.price).toFixed(2):'—'],['Location',data.loc||'—']];
+  document.getElementById('sr-fields').innerHTML=fields.map(([k,v])=>`<div class="sr-row"><span class="sr-key">${k}</span><span class="sr-val">${v}</span></div>`).join('');
+  toast('QR scanned!');
+}
+
+function confirmScan(){
+  if(!pending) return;
+  saveItem(pending);pending=null;
+  document.getElementById('scan-result').style.display='none';
+  toast('Saved to inventory!');renderDash();
+}
+
+function cancelScan(){pending=null;document.getElementById('scan-result').style.display='none';}
+
+function addManual(){
+  const name=document.getElementById('p-name').value.trim();
+  const qty=document.getElementById('p-qty').value;
+  const exp2=document.getElementById('p-exp').value;
+  if(!name||qty===''||!exp2){toast('Name, quantity & expiry required');return;}
+  saveItem({name,batch:document.getElementById('p-batch').value.trim(),cat:document.getElementById('p-cat').value,qty:parseInt(qty),min:parseInt(document.getElementById('p-min').value)||0,exp:exp2,price:parseFloat(document.getElementById('p-price').value)||0,loc:document.getElementById('p-loc').value.trim()});
+  clearForm();toast('Saved: '+name);renderDash();
+}
+
+function clearForm(){['p-name','p-batch','p-qty','p-min','p-exp','p-price','p-loc'].forEach(id=>document.getElementById(id).value='');}
+
+function saveItem(data){
+  const id=Date.now();
+  const batch=data.batch||('B-'+id.toString().slice(-4));
+  const item={id,name:data.name,batch,cat:data.cat||'Other',qty:parseInt(data.qty)||0,min:parseInt(data.min)||0,exp:data.exp||'',price:parseFloat(data.price)||0,loc:data.loc||''};
+  inventory.push(item);
+  const d2=days(item.exp),q=item.qty,m=item.min;
+  const ke=id+'_'+(d2<0?'exp':d2<=2?'48h':d2<=7?'7d':'ok');
+  const ks=id+'_'+(q===0?'out':(m&&q<=m)?'low':'ok');
+  if(d2<0){logEmail('Expired',item.name,'Added expired product.');alerted.add(ke);}
+  else if(d2<=2){logEmail('Expiry 48h',item.name,Math.round(d2*24)+'h remaining.');alerted.add(ke);}
+  else if(d2<=7){logEmail('Expiry 7d',item.name,Math.ceil(d2)+'d remaining.');alerted.add(ke);}
+  if(q===0){logEmail('Out of Stock',item.name,'Zero stock added.');alerted.add(ks);}
+  else if(m&&q<=m){logEmail('Low Stock',item.name,'Only '+q+' units (min: '+m+').');alerted.add(ks);}
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+</script>
