@@ -1,6 +1,7 @@
-import sqlite3
-import bcrypt
 import os
+import psycopg2
+from psycopg2.extras import DictCursor
+import bcrypt
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, g, render_template
 from flask_jwt_extended import (
@@ -16,7 +17,8 @@ app = Flask(__name__)
 # ── 2. CONFIGURATION ─────────────────────────────────────────────────────────
 class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "eco-tracker-secure-key-2026")
-    DATABASE = "eco_tracker.db" 
+    # Paste your Render Database URL string here as a fallback, or set it via Render Environment Variables
+    DATABASE_URL = os.environ.get("DATABASE_URL", "your_render_connection_string_here")
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 
 app.config["JWT_SECRET_KEY"] = Config.JWT_SECRET_KEY
@@ -25,11 +27,11 @@ jwt = JWTManager(app)
 if Config.RESEND_API_KEY:
     resend.api_key = Config.RESEND_API_KEY
 
-# ── 3. DATABASE HELPERS ──────────────────────────────────────────────────────
+# ── 3. DATABASE HELPERS (POSTGRESQL MULTI-THREAD SAFE) ──────────────────────
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(Config.DATABASE)
-        g.db.row_factory = sqlite3.Row
+        # Establishes a connection to your cloud Render Postgres database
+        g.db = psycopg2.connect(Config.DATABASE_URL)
     return g.db
 
 @app.teardown_appcontext
@@ -39,17 +41,41 @@ def close_db(e=None):
         db.close()
 
 def init_db():
-    with sqlite3.connect(Config.DATABASE) as conn:
-        c = conn.cursor()
-        c.execute("""CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT, email TEXT UNIQUE, store_name TEXT, password TEXT, role TEXT)""")
-        c.execute("""CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT, name TEXT, 
-            qty INTEGER, min_qty INTEGER, exp TEXT, added_by INTEGER)""")
-        c.execute("""CREATE TABLE IF NOT EXISTS email_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT, type TEXT, name TEXT, msg TEXT)""")
-        conn.commit()
+    # Connect directly to initialize structure on application boot
+    conn = psycopg2.connect(Config.DATABASE_URL)
+    c = conn.cursor()
+    
+    # Create Users Table using Postgres-compatible syntax (SERIAL instead of AUTOINCREMENT)
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT, 
+        email TEXT UNIQUE, 
+        store_name TEXT, 
+        password TEXT, 
+        role TEXT)""")
+        
+    # Create Products Table
+    c.execute("""CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY, 
+        store_name TEXT, 
+        name TEXT, 
+        qty INTEGER, 
+        min_qty INTEGER, 
+        exp TEXT, 
+        added_by INTEGER)""")
+        
+    # Create Email/Alert Log Table
+    c.execute("""CREATE TABLE IF NOT EXISTS email_log (
+        id SERIAL PRIMARY KEY, 
+        store_name TEXT, 
+        type TEXT, 
+        name TEXT, 
+        msg TEXT)""")
+        
+    conn.commit()
+    c.close()
+    conn.close()
+    print("PostgreSQL Database initialized and tables verified successfully.")
 
 # ── 4. EMAIL AUTOMATION TASK ──────────────────────────────────────────────────
 def check_and_send_emails():
@@ -57,48 +83,51 @@ def check_and_send_emails():
         print("Resend API key missing. Skipping background email verification.")
         return
 
-    with sqlite3.connect(Config.DATABASE) as conn:
-        conn.row_factory = sqlite3.Row
-        db = conn.cursor()
-        
-        users = db.execute("SELECT email, store_name FROM users WHERE role = 'admin'").fetchall()
-        now = datetime.now()
-        
-        for user in users:
-            store = user["store_name"]
-            recipient_email = user["email"]
-            
-            products = db.execute("SELECT * FROM products WHERE store_name = ?", (store,)).fetchall()
-            expiring_items = []
-            
-            for p in products:
-                if p["exp"]:
-                    try:
-                        expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
-                        d_left = (expiry_date - now).days
-                        if d_left <= 4:
-                            expiring_items.append(f"- {p['name']} (Expires in {max(0, d_left)} days | Current Stock: {p['qty']})")
-                    except ValueError:
-                        pass
-            
-            if expiring_items:
-                email_body = f"Hello Admin,\n\nThe following items in your store '{store}' are approaching expiration limits:\n\n" + "\n".join(expiring_items)
+    try:
+        with psycopg2.connect(Config.DATABASE_URL) as conn:
+            with conn.cursor(cursor_factory=DictCursor) as db:
+                db.execute("SELECT email, store_name FROM users WHERE role = 'admin'")
+                users = db.fetchall()
+                now = datetime.now()
                 
-                try:
-                    resend.Emails.send({
-                        "from": "Eco Tracker <onboarding@resend.dev>",
-                        "to": recipient_email,
-                        "subject": f"⚠️ Expiry Warning Summary: {store}",
-                        "text": email_body
-                    })
+                for user in users:
+                    store = user["store_name"]
+                    recipient_email = user["email"]
                     
-                    db.execute("INSERT INTO email_log (store_name, type, name, msg) VALUES (?, ?, ?, ?)",
-                               (store, "Expiry Alert Summary", recipient_email, "Dispatched successfully via background worker."))
-                    conn.commit()
-                    print(f"Background automation successfully emailed {recipient_email}")
+                    db.execute("SELECT * FROM products WHERE store_name = %s", (store,))
+                    products = db.fetchall()
+                    expiring_items = []
                     
-                except Exception as e:
-                    print(f"Failed handling email execution context for {recipient_email}: {str(e)}")
+                    for p in products:
+                        if p["exp"]:
+                            try:
+                                expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
+                                d_left = (expiry_date - now).days
+                                if d_left <= 4:
+                                    expiring_items.append(f"- {p['name']} (Expires in {max(0, d_left)} days | Current Stock: {p['qty']})")
+                            except ValueError:
+                                pass
+                    
+                    if expiring_items:
+                        email_body = f"Hello Admin,\n\nThe following items in your store '{store}' are approaching expiration limits:\n\n" + "\n".join(expiring_items)
+                        
+                        try:
+                            resend.Emails.send({
+                                "from": "Eco Tracker <onboarding@resend.dev>",
+                                "to": recipient_email,
+                                "subject": f"⚠️ Expiry Warning Summary: {store}",
+                                "text": email_body
+                            })
+                            
+                            db.execute("INSERT INTO email_log (store_name, type, name, msg) VALUES (%s, %s, %s, %s)",
+                                       (store, "Expiry Alert Summary", recipient_email, "Dispatched successfully via background worker."))
+                            conn.commit()
+                            print(f"Background automation successfully emailed {recipient_email}")
+                            
+                        except Exception as e:
+                            print(f"Failed handling email execution context for {recipient_email}: {str(e)}")
+    except Exception as db_err:
+        print(f"Background Scheduler Database Error: {str(db_err)}")
 
 # ── 5. HTML TEMPLATE ROUTING ──────────────────────────────────────────────────
 @app.route('/')
@@ -125,31 +154,30 @@ def register():
         if not data:
             return jsonify({"error": "Missing request payload"}), 400
 
-        # Extract fields safely using .get() to prevent server KeyError crashes
         name = data.get("name")
         email = data.get("email")
         store_name = data.get("store_name")
         password = data.get("password")
-        role = data.get("role", "member")  # Default to 'member' if not chosen
+        role = data.get("role", "member")
 
-        # Check for mandatory missing parameters
         if not all([name, email, store_name, password]):
-            return jsonify({"error": "Missing required fields (Name, Email, Store Name, or Password)"}), 400
+            return jsonify({"error": "Missing required fields"}), 400
 
-        # Hash password safely
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
         db = get_db()
-        db.execute("INSERT INTO users (name, email, store_name, password, role) VALUES (?,?,?,?,?)",
-                   (name, email.lower(), store_name, hashed, role))
+        with db.cursor() as cursor:
+            # PostgreSQL uses %s placeholders instead of ?
+            cursor.execute("INSERT INTO users (name, email, store_name, password, role) VALUES (%s,%s,%s,%s,%s)",
+                           (name, email.lower(), store_name, hashed, role))
         db.commit()
-        
         return jsonify({"message": "Registered successfully"}), 201
 
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        db.rollback()
         return jsonify({"error": "Email already exists"}), 409
     except Exception as e:
-        # This catches any other hidden error and prints it to your terminal console log
+        db.rollback()
         print(f"CRITICAL REGISTRATION ERROR: {str(e)}")
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
@@ -157,7 +185,9 @@ def register():
 def login():
     data = request.get_json()
     db = get_db()
-    user = db.execute("SELECT * FROM users WHERE email = ?", (data["email"].lower(),)).fetchone()
+    with db.cursor(cursor_factory=DictCursor) as cursor:
+        cursor.execute("SELECT * FROM users WHERE email = %s", (data["email"].lower(),))
+        user = cursor.fetchone()
     
     if user and bcrypt.checkpw(data["password"].encode('utf-8'), user["password"].encode('utf-8')):
         token = create_access_token(
@@ -174,19 +204,18 @@ def dashboard():
     store = identity["store_name"]
     db = get_db()
     
-    rows = db.execute("SELECT * FROM products WHERE store_name = ?", (store,)).fetchall()
+    with db.cursor(cursor_factory=DictCursor) as cursor:
+        cursor.execute("SELECT * FROM products WHERE store_name = %s", (store,))
+        rows = cursor.fetchall()
+        
     products = [dict(r) for r in rows]
-    
     now = datetime.now()
     expiry_alerts = []
     low_stock_alerts = []
     total_units = 0
     
     for p in products:
-        # Calculate overall warehouse unit sums dynamically based on user records
         total_units += p["qty"]
-        
-        # Check Expiry thresholds
         if p["exp"]:
             try:
                 expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
@@ -197,7 +226,6 @@ def dashboard():
             except: 
                 pass
 
-        # Check Stock Level metrics
         if p["qty"] <= (p["min_qty"] or 0):
             low_stock_alerts.append(p)
 
@@ -218,10 +246,11 @@ def add_product():
     identity = get_jwt_identity()
     data = request.get_json()
     db = get_db()
-    db.execute("""INSERT INTO products (store_name, name, qty, min_qty, exp, added_by) 
-                  VALUES (?, ?, ?, ?, ?, ?)""",
-               (identity["store_name"], data["name"], data["qty"], 
-                data.get("min", 0), data.get("exp"), identity["id"]))
+    with db.cursor() as cursor:
+        cursor.execute("""INSERT INTO products (store_name, name, qty, min_qty, exp, added_by) 
+                      VALUES (%s, %s, %s, %s, %s, %s)""",
+                   (identity["store_name"], data["name"], data["qty"], 
+                    data.get("min", 0), data.get("exp"), identity["id"]))
     db.commit()
     return jsonify({"message": "Product added successfully"}), 201
 
