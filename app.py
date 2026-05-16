@@ -16,14 +16,12 @@ app = Flask(__name__)
 # ── 2. CONFIGURATION ─────────────────────────────────────────────────────────
 class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "eco-tracker-secure-key-2026")
-    # Change to "/data/eco_tracker.db" if you configured a Persistent Volume on Render!
     DATABASE = "eco_tracker.db" 
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 
 app.config["JWT_SECRET_KEY"] = Config.JWT_SECRET_KEY
 jwt = JWTManager(app)
 
-# Initialize Resend if the API key is present
 if Config.RESEND_API_KEY:
     resend.api_key = Config.RESEND_API_KEY
 
@@ -43,32 +41,26 @@ def close_db(e=None):
 def init_db():
     with sqlite3.connect(Config.DATABASE) as conn:
         c = conn.cursor()
-        # Create Users Table
         c.execute("""CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT, email TEXT UNIQUE, store_name TEXT, password TEXT, role TEXT)""")
-        # Create Products Table
         c.execute("""CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT, name TEXT, 
             qty INTEGER, min_qty INTEGER, exp TEXT, added_by INTEGER)""")
-        # Create Email/Alert Log Table
         c.execute("""CREATE TABLE IF NOT EXISTS email_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT, type TEXT, name TEXT, msg TEXT)""")
         conn.commit()
 
 # ── 4. EMAIL AUTOMATION TASK ──────────────────────────────────────────────────
 def check_and_send_emails():
-    """Loops through all stores, checks for expiring products, and sends an automated summary email."""
     if not os.environ.get("RESEND_API_KEY"):
         print("Resend API key missing. Skipping background email verification.")
         return
 
-    # Open isolated DB connection for background execution thread
     with sqlite3.connect(Config.DATABASE) as conn:
         conn.row_factory = sqlite3.Row
         db = conn.cursor()
         
-        # Pull store admins to dispatch warnings
         users = db.execute("SELECT email, store_name FROM users WHERE role = 'admin'").fetchall()
         now = datetime.now()
         
@@ -84,11 +76,10 @@ def check_and_send_emails():
                     try:
                         expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
                         d_left = (expiry_date - now).days
-                        # Requirement: 3-4 day alerting boundary
                         if d_left <= 4:
                             expiring_items.append(f"- {p['name']} (Expires in {max(0, d_left)} days | Current Stock: {p['qty']})")
                     except ValueError:
-                        pass # Ignore malformed date strings safely
+                        pass
             
             if expiring_items:
                 email_body = f"Hello Admin,\n\nThe following items in your store '{store}' are approaching expiration limits:\n\n" + "\n".join(expiring_items)
@@ -151,7 +142,7 @@ def login():
             identity={"id": user["id"], "store_name": user["store_name"]}, 
             expires_delta=timedelta(days=1)
         )
-        return jsonify({"token": token, "user": {"name": user["name"]}})
+        return jsonify({"token": token, "user": {"name": user["name"], "username": user["name"]}})
     return jsonify({"error": "Invalid email or password"}), 401
 
 @app.route("/api/dashboard", methods=["GET"])
@@ -167,18 +158,24 @@ def dashboard():
     now = datetime.now()
     expiry_alerts = []
     low_stock_alerts = []
+    total_units = 0
     
     for p in products:
+        # Calculate overall warehouse unit sums dynamically based on user records
+        total_units += p["qty"]
+        
+        # Check Expiry thresholds
         if p["exp"]:
             try:
                 expiry_date = datetime.strptime(p["exp"], "%Y-%m-%d")
                 d_left = (expiry_date - now).days
                 if d_left <= 4:
-                    p["days_left"] = d_left
+                    p["days_left"] = max(0, d_left)
                     expiry_alerts.append(p)
             except: 
                 pass
 
+        # Check Stock Level metrics
         if p["qty"] <= (p["min_qty"] or 0):
             low_stock_alerts.append(p)
 
@@ -186,7 +183,8 @@ def dashboard():
         "metrics": {
             "total_products": len(products),
             "expiry_count": len(expiry_alerts),
-            "low_stock_count": len(low_stock_alerts)
+            "low_stock_count": len(low_stock_alerts),
+            "total_units": total_units
         },
         "expiry_alerts": expiry_alerts,
         "low_stock_alerts": low_stock_alerts
@@ -209,7 +207,6 @@ def add_product():
 if __name__ == "__main__":
     init_db()
     
-    # Initialize the interval background tracker
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=check_and_send_emails, trigger="interval", hours=24)
     scheduler.start()
