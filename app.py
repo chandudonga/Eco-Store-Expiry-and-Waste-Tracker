@@ -16,6 +16,7 @@ app = Flask(__name__)
 # ── 2. CONFIGURATION ─────────────────────────────────────────────────────────
 class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "eco-tracker-secure-key-2026")
+    # Change to "/data/eco_tracker.db" if you configured a Persistent Volume on Render!
     DATABASE = "eco_tracker.db" 
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 
@@ -108,11 +109,24 @@ def check_and_send_emails():
                 except Exception as e:
                     print(f"Failed handling email execution context for {recipient_email}: {str(e)}")
 
-# ── 5. API ROUTES ────────────────────────────────────────────────────────────
+# ── 5. HTML TEMPLATE ROUTING ──────────────────────────────────────────────────
 @app.route('/')
 def index():
+    return render_template('login.html')
+
+@app.route('/login')
+def login_view():
+    return render_template('login.html')
+
+@app.route('/register')
+def register_view():
+    return render_template('register.html')
+
+@app.route('/dashboard')
+def dashboard_view():
     return render_template('store.html')
 
+# ── 6. API AUTH & DATA ENDPOINTS ──────────────────────────────────────────────
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -191,7 +205,7 @@ def add_product():
     db.commit()
     return jsonify({"message": "Product added successfully"}), 201
 
-# ── 6. RUNNER ────────────────────────────────────────────────────────────────
+# ── 7. RUNNER ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     init_db()
     
